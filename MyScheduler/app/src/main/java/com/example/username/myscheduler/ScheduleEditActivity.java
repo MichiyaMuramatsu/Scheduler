@@ -6,6 +6,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
 import android.app.ProgressDialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -15,11 +16,13 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
+import android.speech.RecognizerIntent;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import com.googlecode.tesseract.android.TessBaseAPI;
@@ -32,7 +35,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Locale;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -44,8 +49,11 @@ import static android.content.ContentValues.TAG;
 public class ScheduleEditActivity extends AppCompatActivity {
 
     static final int PHOTO_REQUEST_CODE = 1;
+    private static final int REQUEST_CODE = 1000;
     private TessBaseAPI tessBaseApi;
     private static final String lang = "jpn";
+    // 言語選択 0:日本語、1:英語、2:オフライン、その他:General
+    private int lan = 0;
     private String DATA_PATH;
     private static final String TESSDATA = "tessdata";
     private Realm mRealm;
@@ -69,15 +77,22 @@ public class ScheduleEditActivity extends AppCompatActivity {
 
         handler = new Handler();
 
+        ImageButton voiceToText = (ImageButton) findViewById(R.id.voice_to_text);
+        voiceToText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 音声認識を開始
+                speech();
+            }
+        });
+
         DATA_PATH = getFilesDir().toString() + "/OCR/";
-        // textView = (TextView) findViewById(R.id.textResult);
-        //Log.v("てすと",DATA_PATH);
-        //Log.v("てすと",getFilesDir().toString());
         prepareDirectory(DATA_PATH);
         prepareDirectory(DATA_PATH + TESSDATA);
         copyTessDataFiles(TESSDATA);
 
         Button captureImg = (Button) findViewById(R.id.action_btn);
+
         if (captureImg != null) {
             captureImg.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -148,11 +163,16 @@ public class ScheduleEditActivity extends AppCompatActivity {
                     e.printStackTrace();
                 }
             }
-//            if(match.isMatch(resultOCR,MainActivity.sEAyear,MainActivity.onDate).equals(MainActivity.onDate)){
-//                Toast.makeText(this, "日付が読み込めませんでした。\n選択日の日付を入力します。", Toast.LENGTH_LONG).show();
-//            }
-        } else {
-//            Toast.makeText(this, "ERROR: Image was not obtained.", Toast.LENGTH_SHORT).show();
+        } else {}
+
+        if(requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
+            super.onActivityResult(requestCode, resultCode, data);
+            // 認識結果を ArrayList で取得
+            ArrayList<String> candidates = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if(candidates.size() > 0) {
+                // 認識結果候補で一番有力なものを表示
+                mDetailEdit.setText( candidates.get(0));
+            }
         }
     }
 
@@ -175,36 +195,22 @@ public class ScheduleEditActivity extends AppCompatActivity {
 
         File dir = new File(path);
         if (!dir.exists()) {
-           // Log.v("てすと",path + "にはファイルはありません");
             if (dir.mkdirs()) {
-               // Log.v("てすと",path + "にファイル作成されました");
-            } else {
-              //  Log.v("てすと",path + "にはファイル作成されませんでした");
-            }
-        } else {
-          //  Log.v("てすと",path + "にはファイルは存在します");
-        }
+            } else {}
+        } else {}
     }
 
     private void copyTessDataFiles(String path) {
         try {
             String fileList[] = getAssets().list(path);
-
             for (String fileName : fileList) {
-
                 String pathToDataFile = DATA_PATH + path + "/" + fileName;
-
                 Log.v("てすと",DATA_PATH + path + "/" + fileName);
-
                 if (!(new File(pathToDataFile)).exists()) {
-
                     InputStream in = getAssets().open(path + "/" + fileName);
-
                     OutputStream out = new FileOutputStream(pathToDataFile);
-
                     byte[] buf = new byte[1024];
                     int len;
-
                     while ((len = in.read(buf)) > 0) {
                         out.write(buf, 0, len);
                     }
@@ -218,7 +224,6 @@ public class ScheduleEditActivity extends AppCompatActivity {
     }
 
     private void setOCR(){
-        Log.v("てすと","あああ");
         progressDialog = new ProgressDialog(this);
         progressDialog.setTitle("ただいま画像処理中です...");
         progressDialog.setMessage("しばらくお待ちください...");
@@ -296,7 +301,6 @@ public class ScheduleEditActivity extends AppCompatActivity {
         return image;
     }
 
-
     public void onSaveTapped(View view) {
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
@@ -362,6 +366,39 @@ public class ScheduleEditActivity extends AppCompatActivity {
             Toast.makeText(this, "削除しました", Toast.LENGTH_LONG).show();
             finish();
         }
+    }
+
+    private void speech(){
+        // 音声認識が使えるか確認する
+        try {
+            // 音声認識の　Intent インスタンス
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+
+            if(lan == 0){
+                // 日本語
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.JAPAN.toString() );
+            }
+            else if(lan == 1){
+                // 英語
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.ENGLISH.toString() );
+            }
+            else if(lan == 2){
+                // Off line mode
+                intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+            }
+            else{
+                intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            }
+
+            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 100);
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "音声を入力");
+            // インテント発行
+            startActivityForResult(intent, REQUEST_CODE);
+        }
+        catch (ActivityNotFoundException e) {
+            mDetailEdit.setText("No Activity " );
+        }
+
     }
 
     @Override
