@@ -17,13 +17,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.speech.RecognizerIntent;
-//import android.preference.DialogPreference;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.googlecode.tesseract.android.TessBaseAPI;
@@ -39,12 +39,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
-//import java.util.List;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
 
 import static android.content.ContentValues.TAG;
+
+//import android.preference.DialogPreference;
+//import java.util.List;
 
 //import android.support.v7.util.ThreadUtil;
 
@@ -65,6 +67,7 @@ public class ScheduleEditActivity extends AppCompatActivity {
     String dateOCR;
     Handler handler;
     Thread dateThread;
+    ImageView img;
 
 
     EditText mDateEdit;
@@ -179,9 +182,13 @@ public class ScheduleEditActivity extends AppCompatActivity {
     }
 
     private void kakunin(){
+        img = new ImageView(this);
+        bitmap = Bitmap.createScaledBitmap(bitmap,600,1000,false);
+        img.setImageBitmap(bitmap);
         new AlertDialog.Builder(this)
                 .setTitle("最終確認")
-                .setMessage("本当にこの画像でよろしいでしょうか")
+                .setMessage("本当にこの画像でよろしいでしょうか?")
+                .setView(img)
                 .setPositiveButton("承諾", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
