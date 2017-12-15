@@ -57,7 +57,7 @@ public class ScheduleEditActivity extends AppCompatActivity {
     private TessBaseAPI tessBaseApi;
     private static final String lang = "jpn";
     // 言語選択 0:日本語、1:英語、2:オフライン、その他:General
-    private int lan = 0;
+    private int lan = 2;
     private String DATA_PATH;
     private static final String TESSDATA = "tessdata";
     private Realm mRealm;
@@ -163,7 +163,7 @@ public class ScheduleEditActivity extends AppCompatActivity {
                 uri = data.getData();
                 try {
                     bitmap = getBitmapFromUri(uri);
-                    kakunin();
+                    alertDialog();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -181,7 +181,7 @@ public class ScheduleEditActivity extends AppCompatActivity {
         }
     }
 
-    private void kakunin(){
+    private void alertDialog(){
         img = new ImageView(this);
         bitmap = Bitmap.createScaledBitmap(bitmap,600,1000,false);
         img.setImageBitmap(bitmap);
@@ -234,7 +234,7 @@ public class ScheduleEditActivity extends AppCompatActivity {
 
     private void setOCR(){
         progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("ただいま画像処理中です...");
+        progressDialog.setTitle("画像処理中");
         progressDialog.setMessage("しばらくお待ちください...");
         progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
         progressDialog.setCancelable(false);
@@ -289,13 +289,12 @@ public class ScheduleEditActivity extends AppCompatActivity {
 
         tessBaseApi.init(DATA_PATH, lang);
 
-        Log.d(TAG, "Training file loaded");
         tessBaseApi.setImage(bitmap);
         String extractedText = "empty result";
         try {
             extractedText = tessBaseApi.getUTF8Text();
         } catch (Exception e) {
-            Log.e(TAG, "Error in recognizing text.");
+            e.printStackTrace();
         }
         tessBaseApi.end();
         return extractedText;
